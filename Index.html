@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buquê de Tulipas &amp; Coração de Amor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #050208;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #stageCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    /* Vinheta suave que valoriza o brilho das tulipas e do coração */
+    .vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 48%, rgba(30, 10, 24, 0.14) 0%, rgba(5, 2, 8, 0.78) 88%);
+    }
+
+    /* Legenda poética discreta (controlada pelo objeto CONFIG_CARTAO no script) */
+    .card-caption {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      color: rgba(254, 243, 215, 0.92);
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 0 24px rgba(245, 190, 60, 0.22);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1.4s ease, transform 1.4s ease;
+    }
+
+    .card-caption.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Posicionamento responsivo: lateral elegante em telas largas, faixa central sutil no mobile */
+    @media (min-width: 900px) {
+      .card-caption {
+        right: 4.5vw;
+        top: 50%;
+        transform: translateY(-50%) translateX(12px);
+        max-width: 270px;
+        text-align: right;
+        border-right: 1px solid rgba(252, 211, 77, 0.32);
+        padding-right: 1.1rem;
+      }
+      .card-caption.visible {
+        transform: translateY(-50%) translateX(0);
+      }
+    }
+
+    @media (max-width: 899px) {
+      .card-caption {
+        left: 50%;
+        top: 51%;
+        transform: translate(-50%, -40%);
+        width: 88vw;
+        max-width: 420px;
+        text-align: center;
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        background: radial-gradient(ellipse at center, rgba(5, 2, 8, 0.62) 0%, rgba(5, 2, 8, 0) 80%);
+      }
+      .card-caption.visible {
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    .caption-message {
+      font-style: italic;
+      font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+    }
+
+    .caption-signature {
+      margin-top: 0.35rem;
+      font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+      color: rgba(253, 164, 175, 0.9);
+      letter-spacing: 0.04em;
+    }
+
+    /* Botão discreto de som no canto superior direito */
+    #musicBtn {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 20;
+      width: 38px;
+      height: 38px;
+      border-radius: 9999px;
+      border: 1px solid rgba(252, 211, 77, 0.32);
+      background: rgba(15, 7, 22, 0.55);
+      color: #fde68a;
+      font-size: 16px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    #musicBtn:active {
+      transform: scale(0.92);
+    }
+
+    /* Player do YouTube mantido dentro da viewport (1x1px) para o navegador não suspender o áudio */
+    #ytHiddenWrap {
+      position: fixed;
+      right: 4px;
+      bottom: 4px;
+      width: 1px;
+      height: 1px;
+      opacity: 0.01;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* Aviso discreto caso o vídeo do YouTube tenha bloqueio de incorporação */
+    #musicToast {
+      position: fixed;
+      top: 62px;
+      right: 16px;
+      z-index: 25;
+      max-width: 290px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(252, 211, 77, 0.35);
+      background: rgba(15, 7, 22, 0.88);
+      color: #fef3c7;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      display: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stageCanvas"></canvas>
+  <div class="vignette"></div>
+
+  <!-- Bloco de texto discreto (preenchido via CONFIG_CARTAO) -->
+  <div id="cardCaption" class="card-caption" aria-live="polite">
+    <p id="captionMessage" class="caption-message"></p>
+    <p id="captionSignature" class="caption-signature"></p>
+  </div>
+
+  <!-- Controle discreto de áudio -->
+  <button id="musicBtn" type="button" aria-label="Alternar música" title="Música">♪</button>
+  <div id="musicToast" role="status"></div>
+  <input id="fallbackAudioInput" type="file" accept="audio/*" style="display:none" />
+  <div id="ytHiddenWrap"><div id="ytPlayerMount"></div></div>
+
+  <script>
+    // =========================================================================
+    // CONFIGURAÇÃO DO CARTÃO (Edite mensagem e música diretamente aqui)
+    // =========================================================================
+    const CONFIG_CARTAO = {
+      mostrarTexto: true,
+      mensagem: "Cada pétala que desabrocha guarda um pouco do carinho que sinto por você.",
+      assinatura: "Com todo o meu amor ♥",
+
+      // MÚSICA DE FUNDO (Aceita arquivo local, link direto .mp3/.ogg OU link do YouTube):
+      // Exemplos válidos:
+      //   Arquivo local na mesma pasta: "nossa_musica.mp3"
+      //   Link direto de áudio:         "https://site.com/musica.mp3"
+      //   Link do YouTube:              "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      //   Link curto do YouTube:        "https://youtu.be/dQw4w9WgXcQ"
+      musicaUrl: "https://youtu.be/3eT464L1YRA",
+      inicioSegundos: 0,      // Segundo inicial da música (útil para pular introduções longas)
+      volumeMusica: 0.60,     // Volume de 0.0 (mudo) até 1.0 (máximo)
+      repetirMusica: true,    // true para repetir continuamente
+      mostrarBotaoSom: true   // Exibe o botão discreto ♪ no canto superior direito
+    };
+
+    // =========================================================================
+    // CONTROLE UNIFICADO DE ÁUDIO (ARQUIVO LOCAL / MP3 + YOUTUBE IFRAME API)
+    // =========================================================================
+    function extractYouTubeId(url) {
+      if (!url) return null;
+      const clean = url.trim();
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|music\.youtube\.com\/watch\?v=)([A-Za-z0-9_-]{11})/,
+        /[?&]v=([A-Za-z0-9_-]{11})/
+      ];
+      for (const re of patterns) {
+        const m = clean.match(re);
+        if (m && m[1]) return m[1];
+      }
+      return null;
+    }
+
+    (function setupBackgroundMusic() {
+      const rawUrl = (CONFIG_CARTAO.musicaUrl || "").trim();
+      if (!rawUrl) return;
+
+      const musicBtn = document.getElementById("musicBtn");
+      const musicToast = document.getElementById("musicToast");
+      const fallbackInput = document.getElementById("fallbackAudioInput");
+      const vol = Math.max(0, Math.min(1, CONFIG_CARTAO.volumeMusica ?? 0.6));
+      const loop = Boolean(CONFIG_CARTAO.repetirMusica);
+      const startSec = Math.max(0, Number(CONFIG_CARTAO.inicioSegundos) || 0);
+      const ytId = extractYouTubeId(rawUrl);
+
+      let userMuted = false;
+      let isPlaying = false;
+      let ytBlocked = false;
+      let htmlAudio = null;
+      let ytPlayer = null;
+      let ytReady = false;
+
+      function showMusicNotice(msg) {
+        musicToast.textContent = msg;
+        musicToast.style.display = "block";
+      }
+
+      // Permite escolher um .mp3 local caso o vídeo do YouTube esteja bloqueado
+      musicToast.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fallbackInput.click();
+      });
+
+      fallbackInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        ytBlocked = true;
+        musicToast.style.display = "none";
+        const objUrl = URL.createObjectURL(file);
+        htmlAudio = new Audio(objUrl);
+        htmlAudio.loop = loop;
+        htmlAudio.volume = vol;
+        htmlAudio.play().then(() => {
+          isPlaying = true;
+          updateBtnUI();
+        }).catch(() => {});
+      });
+
+      if (CONFIG_CARTAO.mostrarBotaoSom) {
+        musicBtn.style.display = "flex";
+      }
+
+      function updateBtnUI() {
+        musicBtn.textContent = isPlaying && !userMuted ? "♪" : "✕";
+        musicBtn.style.opacity = isPlaying && !userMuted ? "0.92" : "0.52";
+      }
+
+      function tryStartPlayback() {
+        if (userMuted) return;
+
+        if (ytId && !ytBlocked) {
+          if (ytReady && ytPlayer && typeof ytPlayer.playVideo === "function") {
+            ytPlayer.unMute();
+            ytPlayer.setVolume(Math.round(vol * 100));
+            const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+            if (state !== 1) {
+              ytPlayer.playVideo();
+            }
+          }
+        } else if (htmlAudio) {
+          if (htmlAudio.paused) {
+            htmlAudio.play().then(() => {
+              isPlaying = true;
+              updateBtnUI();
+            }).catch(() => {
+              updateBtnUI();
+            });
+          }
+        }
+      }
+
+      if (ytId) {
+        // Modo YouTube via IFrame Player API
+        window.onYouTubeIframeAPIReady = function () {
+          ytPlayer = new YT.Player("ytPlayerMount", {
+            height: "1",
+            width: "1",
+            videoId: ytId,
+            playerVars: {
+              autoplay: 1,
+              controls: 0,
+              disablekb: 1,
+              fs: 0,
+              loop: loop ? 1 : 0,
+              playlist: loop ? ytId : undefined,
+              modestbranding: 1,
+              playsinline: 1,
+              rel: 0,
+              start: Math.floor(startSec)
+            },
+            events: {
+              onReady: (ev) => {
+                ytReady = true;
+                ev.target.setVolume(Math.round(vol * 100));
+                if (!userMuted) {
+                  ev.target.playVideo();
+                }
+              },
+              onStateChange: (ev) => {
+                // 1 = PLAYING, 2 = PAUSED, 0 = ENDED
+                if (ev.data === 1) {
+                  isPlaying = true;
+                  musicToast.style.display = "none";
+                  updateBtnUI();
+                } else if (ev.data === 2) {
+                  isPlaying = false;
+                  updateBtnUI();
+                } else if (ev.data === 0 && loop && !userMuted) {
+                  ev.target.seekTo(startSec, true);
+                  ev.target.playVideo();
+                }
+              },
+              onError: (ev) => {
+                ytBlocked = true;
+                isPlaying = false;
+                updateBtnUI();
+                if (ev.data === 101 || ev.data === 150) {
+                  showMusicNotice("Clipe oficial bloqueado pelo YouTube para sites externos. Use um link versão 'Lyrics/Áudio' ou clique aqui para escolher um .mp3.");
+                } else if (window.location.protocol === "file:") {
+                  showMusicNotice("O YouTube bloqueia reprodução em arquivos abertos direto do PC (file://). Clique aqui para selecionar um .mp3 local.");
+                } else {
+                  showMusicNotice("Não foi possível tocar este vídeo do YouTube. Clique aqui para escolher um .mp3.");
+                }
+              }
+            }
+          });
+        };
+
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+      } else {
+        // Modo Arquivo Local ou Link Direto (.mp3, .ogg, .wav, .m4a)
+        htmlAudio = new Audio(rawUrl);
+        htmlAudio.loop = loop;
+        htmlAudio.volume = vol;
+        htmlAudio.preload = "auto";
+
+        if (startSec > 0) {
+          htmlAudio.addEventListener("loadedmetadata", () => {
+            if (startSec < htmlAudio.duration) {
+              htmlAudio.currentTime = startSec;
+            }
+          }, { once: true });
+        }
+
+        htmlAudio.addEventListener("play", () => {
+          isPlaying = true;
+          updateBtnUI();
+        });
+        htmlAudio.addEventListener("pause", () => {
+          isPlaying = false;
+          updateBtnUI();
+        });
+
+        tryStartPlayback();
+      }
+
+      // Desbloqueia autoplay no primeiro toque/clique/tecla em qualquer navegador
+      window.addEventListener("pointerdown", tryStartPlayback, { passive: true });
+      window.addEventListener("keydown", tryStartPlayback, { passive: true });
+
+      musicBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (ytId) {
+          if (!ytReady || !ytPlayer) return;
+          if (isPlaying && !userMuted) {
+            userMuted = true;
+            ytPlayer.pauseVideo();
+            isPlaying = false;
+          } else {
+            userMuted = false;
+            ytPlayer.unMute();
+            ytPlayer.setVolume(Math.round(vol * 100));
+            ytPlayer.playVideo();
+            isPlaying = true;
+          }
+          updateBtnUI();
+        } else if (htmlAudio) {
+          if (!htmlAudio.paused) {
+            userMuted = true;
+            htmlAudio.pause();
+          } else {
+            userMuted = false;
+            htmlAudio.play().catch(() => {});
+          }
+          updateBtnUI();
+        }
+      });
+
+      updateBtnUI();
+    })();
+
+    // =========================================================================
+    // CONFIGURAÇÃO DO TEXTO DO CARTÃO
+    // =========================================================================
+    const captionEl = document.getElementById("cardCaption");
+    const captionMsgEl = document.getElementById("captionMessage");
+    const captionSigEl = document.getElementById("captionSignature");
+    const hasText = Boolean(
+      CONFIG_CARTAO.mostrarTexto &&
+      (CONFIG_CARTAO.mensagem.trim() || CONFIG_CARTAO.assinatura.trim())
+    );
+
+    if (hasText) {
+      captionMsgEl.textContent = CONFIG_CARTAO.mensagem;
+      captionSigEl.textContent = CONFIG_CARTAO.assinatura;
+    }
+
+    // =========================================================================
+    // 1. UTILITÁRIOS MATEMÁTICOS E GERADORES DETERMINÍSTICOS
+    // =========================================================================
+    function clamp(x, a, b) {
+      return x < a ? a : x > b ? b : x;
+    }
+
+    function smoothstep(a, b, x) {
+      const t = clamp((x - a) / (b - a), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function mixNum(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function createMulberry32(seed) {
+      let s = seed >>> 0;
+      return {
+        random() {
+          s = (s + 0x6D2B79F5) | 0;
+          let t = Math.imul(s ^ (s >>> 15), 1 | s);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        },
+        uniform(a, b) {
+          return a + (b - a) * this.random();
+        }
+      };
+    }
+
+    function createParkMiller(seed) {
+      let s = seed % 2147483647;
+      if (s <= 0) s += 2147483646;
+      return {
+        random() {
+          s = (s * 16807) % 2147483647;
+          return (s - 1) / 2147483646;
+        },
+        uniform(min, max) {
+          return min + this.random() * (max - min);
+        },
+        choice(arr) {
+          return arr[Math.floor(this.random() * arr.length)];
+        },
+        shuffle(arr) {
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(this.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          return arr;
+        }
+      };
+    }
+
+    // =========================================================================
+    // 2. MOTOR DO BUQUÊ EXUBERANTE (13 TULIPAS AMARELAS + 11 FOLHAS ESPAÇADAS)
+    // Renderização ultrarrápida via ImageData / Uint32Array + Painter's Algorithm
+    // =========================================================================
+    const TulipBouquet = (() => {
+      const W = 1140;
+      const H = 800;
+      const DURATION = 8.0;
+      const rng = createMulberry32(42);
+
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = W;
+      offCanvas.height = H;
+      const offCtx = offCanvas.getContext("2d", { alpha: true });
+      const imgData = offCtx.createImageData(W, H);
+      const buf32 = new Uint32Array(imgData.data.buffer);
+
+      // Offsets circulares para pinceladas suaves no Uint32Array
+      const OFFSETS = [];
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= 5) OFFSETS.push({ dx, dy, d2 });
+        }
+      }
+      OFFSETS.sort((a, b) => a.d2 - b.d2);
+
+      // 13 Tulipas bem espaçadas em um leque aberto (tx de -385 a +385, ty de 195 a 515)
+      const TULIPS = [
+        // --- Camada 1: Fundo (coroa ampla e alta, tz negativo) ---
+        { bx: -75,  by: 795, tx: -185, ty: 215, tz: -120, scale: 0.86, tiltX: -0.05, tiltZ: 0.24,  delay: 0.04, openMax: 0.85, rotY: 0.15 },
+        { bx: 0,    by: 795, tx: -5,   ty: 195, tz: -110, scale: 0.90, tiltX: -0.07, tiltZ: -0.02, delay: 0.02, openMax: 0.88, rotY: 0.55 },
+        { bx: 78,   by: 795, tx: 195,  ty: 220, tz: -95,  scale: 0.85, tiltX: -0.04, tiltZ: -0.26, delay: 0.08, openMax: 0.84, rotY: 0.95 },
+        { bx: -125, by: 795, tx: -355, ty: 285, tz: -75,  scale: 0.82, tiltX: 0.06,  tiltZ: 0.42,  delay: 0.11, openMax: 0.90, rotY: 1.25 },
+        { bx: 125,  by: 795, tx: 360,  ty: 290, tz: -65,  scale: 0.82, tiltX: 0.07,  tiltZ: -0.42, delay: 0.14, openMax: 0.88, rotY: 0.35 },
+
+        // --- Camada 2: Meio (leque intermediário com respiro visual entre cabeças) ---
+        { bx: -98,  by: 795, tx: -255, ty: 350, tz: -15,  scale: 0.88, tiltX: 0.14,  tiltZ: 0.34,  delay: 0.00, openMax: 0.94, rotY: 1.05 },
+        { bx: -24,  by: 795, tx: -75,  ty: 335, tz: 10,   scale: 0.94, tiltX: 0.16,  tiltZ: 0.10,  delay: 0.06, openMax: 0.92, rotY: 0.40 },
+        { bx: 35,   by: 795, tx: 110,  ty: 345, tz: 20,   scale: 0.92, tiltX: 0.17,  tiltZ: -0.16, delay: 0.09, openMax: 0.93, rotY: 0.78 },
+        { bx: 108,  by: 795, tx: 295,  ty: 380, tz: 35,   scale: 0.84, tiltX: 0.21,  tiltZ: -0.45, delay: 0.16, openMax: 0.96, rotY: 0.22 },
+
+        // --- Camada 3: Frente (primeiro plano bem aberto, tz positivo) ---
+        { bx: -135, by: 795, tx: -385, ty: 445, tz: 65,   scale: 0.80, tiltX: 0.25,  tiltZ: 0.48,  delay: 0.15, openMax: 0.96, rotY: 0.68 },
+        { bx: -62,  by: 795, tx: -175, ty: 475, tz: 90,   scale: 0.90, tiltX: 0.29,  tiltZ: 0.22,  delay: 0.12, openMax: 0.95, rotY: 0.90 },
+        { bx: 18,   by: 795, tx: 45,   ty: 485, tz: 105,  scale: 0.93, tiltX: 0.28,  tiltZ: -0.08, delay: 0.10, openMax: 0.96, rotY: 0.50 },
+        { bx: 88,   by: 795, tx: 235,  ty: 515, tz: 120,  scale: 0.86, tiltX: 0.33,  tiltZ: -0.36, delay: 0.18, openMax: 1.00, rotY: 0.85 }
+      ];
+
+      // 11 Folhas longas espalhadas com ângulos amplos para emoldurar o buquê largo
+      const LEAVES = [
+        // Folhas externas bem abertas
+        { bx: -135, by: 795, dir: -1, len: 510, wid: 48, ang0: 0.42, ang1: 0.94, curve: 0.46, z: -80 },
+        { bx: 135,  by: 795, dir: 1,  len: 515, wid: 48, ang0: 0.40, ang1: 0.92, curve: 0.44, z: -75 },
+        { bx: -95,  by: 795, dir: -1, len: 465, wid: 45, ang0: 0.32, ang1: 0.78, curve: 0.36, z: -40 },
+        { bx: 95,   by: 795, dir: 1,  len: 470, wid: 46, ang0: 0.30, ang1: 0.76, curve: 0.35, z: -35 },
+        // Folhas intermediárias preenchendo os vãos entre caules
+        { bx: -115, by: 795, dir: -1, len: 415, wid: 42, ang0: 0.36, ang1: 0.86, curve: 0.40, z: 5 },
+        { bx: 115,  by: 795, dir: 1,  len: 420, wid: 42, ang0: 0.35, ang1: 0.84, curve: 0.38, z: 10 },
+        { bx: -42,  by: 795, dir: -1, len: 390, wid: 40, ang0: 0.18, ang1: 0.52, curve: 0.24, z: 25 },
+        { bx: 48,   by: 795, dir: 1,  len: 395, wid: 40, ang0: 0.19, ang1: 0.54, curve: 0.25, z: 30 },
+        // Folhas frontais
+        { bx: -78,  by: 795, dir: -1, len: 350, wid: 40, ang0: 0.28, ang1: 0.74, curve: 0.32, z: 75 },
+        { bx: 78,   by: 795, dir: 1,  len: 355, wid: 40, ang0: 0.26, ang1: 0.72, curve: 0.30, z: 80 },
+        { bx: 0,    by: 795, dir: 1,  len: 320, wid: 36, ang0: 0.12, ang1: 0.38, curve: 0.18, z: 112 }
+      ];
+
+      // Amostragem otimizada para manter 60fps fluídos com 13 tulipas e 11 folhas
+      const PETAL_PTS = 1100;
+      const petalSamples = [];
+      for (let i = 0; i < PETAL_PTS; i++) {
+        const u = Math.pow(rng.random(), 0.85);
+        let v = rng.uniform(-1, 1);
+        if (rng.random() < 0.18) v = (v >= 0 ? 1 : -1) * rng.uniform(0.88, 1.0);
+        const vein = Math.sin(v * Math.PI * 7) * 0.5 + 0.5;
+        const noise = rng.uniform(-0.04, 0.04);
+        const rad = rng.random() < 0.68 ? 2.2 : 1.5;
+        petalSamples.push({ u, v, vein, noise, rad });
+      }
+
+      const LEAF_PTS = 950;
+      const leafSamples = [];
+      for (let i = 0; i < LEAF_PTS; i++) {
+        const u = Math.pow(rng.random(), 0.9);
+        const v = rng.uniform(-1, 1);
+        const noise = rng.uniform(-0.05, 0.05);
+        const rad = rng.random() < 0.65 ? 2.2 : 1.5;
+        leafSamples.push({ u, v, noise, rad });
+      }
+
+      const STEM_PTS = 500;
+      const stemSamples = [];
+      for (let i = 0; i < STEM_PTS; i++) {
+        stemSamples.push({
+          s: rng.random(),
+          lat: rng.uniform(-1, 1),
+          noise: rng.uniform(-0.04, 0.04)
+        });
+      }
+
+      const MAX_POINTS = 140000;
+      const px = new Float32Array(MAX_POINTS);
+      const py = new Float32Array(MAX_POINTS);
+      const pz = new Float32Array(MAX_POINTS);
+      const pr = new Uint8ClampedArray(MAX_POINTS);
+      const pg = new Uint8ClampedArray(MAX_POINTS);
+      const pb = new Uint8ClampedArray(MAX_POINTS);
+      const prad = new Float32Array(MAX_POINTS);
+      const order = new Int32Array(MAX_POINTS);
+      let count = 0;
+
+      function pushPt(x, y, z, r, g, b, rad) {
+        if (count >= MAX_POINTS) return;
+        const i = count++;
+        px[i] = x;
+        py[i] = y;
+        pz[i] = z;
+        pr[i] = r;
+        pg[i] = g;
+        pb[i] = b;
+        prad[i] = rad;
+      }
+
+      function rotate3D(x, y, z, rx, ry, rz) {
+        let cy = Math.cos(ry), sy = Math.sin(ry);
+        let x1 = x * cy + z * sy;
+        let z1 = -x * sy + z * cy;
+        let cx = Math.cos(rx), sx = Math.sin(rx);
+        let y2 = y * cx - z1 * sx;
+        let z2 = y * sx + z1 * cx;
+        let cz = Math.cos(rz), sz = Math.sin(rz);
+        let x3 = x1 * cz - y2 * sz;
+        let y3 = x1 * sz + y2 * cz;
+        return [x3, y3, z2];
+      }
+
+      function update(t) {
+        count = 0;
+        const rawProg = clamp(t / DURATION, 0, 1);
+        const bloomGlobal = smoothstep(0.0, 1.0, rawProg);
+        const sway = Math.sin(t * 0.85) * 6.0 * smoothstep(0, 0.3, rawProg);
+
+        // 1. Caules
+        for (let ti = 0; ti < TULIPS.length; ti++) {
+          const tp = TULIPS[ti];
+          const open = smoothstep(tp.delay, 1.0, bloomGlobal) * tp.openMax;
+          const spreadX = tp.tx * (0.18 * open);
+          const dropY = 22 * open;
+
+          const hx = W / 2 + tp.tx + spreadX + sway * 0.7;
+          const hy = tp.ty + dropY;
+          const bx = W / 2 + tp.bx;
+          const by = tp.by;
+
+          for (let i = 0; i < STEM_PTS; i++) {
+            const st = stemSamples[i];
+            const s = st.s;
+            const cx = mixNum(bx, hx, 0.45);
+            const cy = mixNum(by, hy, 0.55);
+            const q = 1 - s;
+            const sx = q * q * bx + 2 * q * s * cx + s * s * hx;
+            const sy = q * q * by + 2 * q * s * cy + s * s * hy;
+
+            const width = 9.0 * tp.scale * (1 - 0.15 * s);
+            const shade = 0.65 + 0.35 * (1 - Math.abs(st.lat)) + st.noise;
+            const r = (38 + 25 * s) * shade;
+            const g = (88 + 42 * s) * shade;
+            const b = (22 + 12 * s) * shade;
+
+            pushPt(sx + st.lat * width, sy, tp.tz - 5, r, g, b, 2.1);
+          }
+        }
+
+        // 2. Folhas verdes
+        for (let li = 0; li < LEAVES.length; li++) {
+          const lf = LEAVES[li];
+          const ang = mixNum(lf.ang0, lf.ang1, bloomGlobal) + Math.sin(t * 0.9 + li) * 0.025;
+          const bx = W / 2 + lf.bx;
+          const by = lf.by;
+
+          for (let i = 0; i < LEAF_PTS; i++) {
+            const sp = leafSamples[i];
+            const u = sp.u;
+            const v = sp.v;
+
+            const profile = Math.sin(Math.PI * Math.pow(u, 0.72));
+            const localW = lf.wid * profile;
+            const curAng = ang + lf.curve * u * u;
+
+            const dist = u * lf.len;
+            const lx = bx + lf.dir * (Math.sin(curAng) * dist + v * localW * Math.cos(curAng));
+            const ly = by - Math.cos(curAng) * dist + lf.dir * v * localW * Math.sin(curAng);
+
+            const fold = 1.0 - 0.28 * Math.abs(v) + sp.noise;
+            const tipLight = 0.75 + 0.35 * u;
+            const r = (45 + 38 * u) * fold * tipLight;
+            const g = (102 + 52 * u) * fold * tipLight;
+            const b = (24 + 14 * u) * fold * tipLight;
+
+            pushPt(lx, ly, lf.z + (1 - Math.abs(v)) * 8, r, g, b, sp.rad);
+          }
+        }
+
+        // 3. Cabeças das 13 Tulipas (6 pétalas cada: 3 internas + 3 externas)
+        for (let ti = 0; ti < TULIPS.length; ti++) {
+          const tp = TULIPS[ti];
+          const open = smoothstep(tp.delay, 1.0, bloomGlobal) * tp.openMax;
+          const spreadX = tp.tx * (0.18 * open);
+          const dropY = 22 * open;
+
+          const hx = W / 2 + tp.tx + spreadX + sway;
+          const hy = tp.ty + dropY;
+          const H_PETAL = 142 * tp.scale;
+          const W_PETAL = 64 * tp.scale;
+
+          for (let p = 0; p < 6; p++) {
+            const isOuter = p % 2 === 0;
+            const azim = tp.rotY + (p * Math.PI) / 3;
+            const ca = Math.cos(azim);
+            const sa = Math.sin(azim);
+
+            const openFactor = isOuter ? open : open * 0.68;
+            const baseRadius = (isOuter ? 15 : 10) * tp.scale;
+            const spreadAngle = mixNum(isOuter ? 0.14 : 0.06, isOuter ? 0.68 : 0.42, openFactor);
+            const cupCurve = mixNum(isOuter ? -0.48 : -0.55, isOuter ? 0.18 : -0.12, openFactor);
+
+            for (let i = 0; i < PETAL_PTS; i++) {
+              const pt = petalSamples[i];
+              const u = pt.u;
+              const v = pt.v;
+
+              const widthProfile = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.68)), 0.78);
+              const yLocal = -u * H_PETAL;
+
+              const rBend = baseRadius + u * H_PETAL * Math.sin(spreadAngle) + Math.sin(u * Math.PI) * (18 * (1 - openFactor)) + (u * u * 35 * cupCurve);
+              const bowlDepth = (1 - v * v) * (15 * tp.scale) * (1 - 0.35 * openFactor);
+              const rTotal = rBend + bowlDepth;
+              const xCross = v * W_PETAL * widthProfile;
+
+              const x3 = rTotal * ca - xCross * sa;
+              const z3 = rTotal * sa + xCross * ca;
+              const y3 = yLocal;
+
+              const [rx, ry, rz] = rotate3D(x3, y3, z3, tp.tiltX, 0, tp.tiltZ);
+
+              const screenX = hx + rx;
+              const screenY = hy + ry;
+              const depthZ = tp.tz + rz;
+
+              const nx = (ca * 0.7 - sa * v * 0.5);
+              const nz = (sa * 0.7 + ca * v * 0.5);
+              const lightDir = clamp(0.62 + 0.25 * nz - 0.18 * nx + 0.25 * u, 0.38, 1.18);
+
+              const innerAO = isOuter ? 1.0 : mixNum(0.76, 0.96, open);
+              const baseWarmth = smoothstep(0.32, 0.0, u);
+              const rimHighlight = smoothstep(0.84, 1.0, Math.abs(v)) * 0.14;
+              const tex = 1.0 + (pt.vein - 0.5) * 0.07 + pt.noise;
+
+              const shade = lightDir * innerAO * tex + rimHighlight;
+
+              const rCol = mixNum(252, 215, baseWarmth) * shade;
+              const gCol = mixNum(204, 152, baseWarmth) * shade;
+              const bCol = mixNum(10,  6,   baseWarmth) * shade;
+
+              pushPt(screenX, screenY, depthZ, rCol, gCol, bCol, pt.rad);
+            }
+          }
+        }
+
+        // Ordenação por profundidade Z (Painter's Algorithm)
+        const ord = order.subarray(0, count);
+        for (let i = 0; i < count; i++) ord[i] = i;
+        ord.sort((a, b) => pz[a] - pz[b]);
+
+        // Limpa com transparência total para mesclar suavemente no palco principal
+        buf32.fill(0x00000000);
+
+        for (let i = 0; i < count; i++) {
+          const idx = ord[i];
+          const ix = px[idx] | 0;
+          const iy = py[idx] | 0;
+          const r2 = prad[idx] * prad[idx];
+          const col32 = (255 << 24) | (pb[idx] << 16) | (pg[idx] << 8) | pr[idx];
+
+          for (let j = 0; j < OFFSETS.length; j++) {
+            if (OFFSETS[j].d2 > r2) break;
+            const sx = ix + OFFSETS[j].dx;
+            const sy = iy + OFFSETS[j].dy;
+            if (sx >= 0 && sx < W && sy >= 0 && sy < H) {
+              buf32[sy * W + sx] = col32;
+            }
+          }
+        }
+
+        offCtx.putImageData(imgData, 0, 0);
+        return offCanvas;
+      }
+
+      return { update, W, H };
+    })();
+
+    // =========================================================================
+    // 3. MOTOR DO CORAÇÃO MULTILÍNGUE ("Eu te amo" em 20 idiomas)
+    // =========================================================================
+    const LoveHeart = (() => {
+      const SC = 21;
+      const OY = 20;
+      const DURATION = 9.0;
+      const ANIM = 42;
+      const LIFT = 34;
+      const GAP = 7;
+      const SIZES = [12, 13, 15, 16];
+      const FONT = "Arial, sans-serif";
+      const BGC = [5 / 255, 2 / 255, 8 / 255];
+      const FLASH = [1.0, 0.86, 0.72];
+
+      const PHRASES = [
+        "Eu te amo", "I love you", "Te amo", "Je t'aime",
+        "Ti amo", "Ich liebe dich", "Seni seviyorum", "Я тебя люблю",
+        "사랑해", "愛してる", "我爱你", "मैं तुमसे प्यार करता हूँ",
+        "Σ' αγαπώ", "Ik hou van jou", "Jag älskar dig", "Kocham cię",
+        "ฉันรักเธอ", "Anh yêu em", "Aku cinta kamu", "Я тебе кохаю"
+      ];
+
+      const measureCanvas = document.createElement("canvas");
+      const mCtx = measureCanvas.getContext("2d");
+      const rng = createParkMiller(11);
+
+      function heart(a) {
+        const x = 16 * Math.pow(Math.sin(a), 3);
+        const y =
+          13 * Math.cos(a) -
+          5 * Math.cos(2 * a) -
+          2 * Math.cos(3 * a) -
+          Math.cos(4 * a);
+        return [x * SC, y * SC + OY];
+      }
+
+      function hx(c, alpha = 1) {
+        const r = Math.round(clamp(c[0], 0, 1) * 255);
+        const g = Math.round(clamp(c[1], 0, 1) * 255);
+        const b = Math.round(clamp(c[2], 0, 1) * 255);
+        return `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+      }
+
+      function mixCol(a, b, k) {
+        return [
+          a[0] + (b[0] - a[0]) * k,
+          a[1] + (b[1] - a[1]) * k,
+          a[2] + (b[2] - a[2]) * k
+        ];
+      }
+
+      function dimCol(c, k) {
+        return [c[0] * k, c[1] * k, c[2] * k];
+      }
+
+      const POLY = [];
+      for (let i = 0; i < 720; i++) {
+        POLY.push(heart((2 * Math.PI * i) / 720));
+      }
+
+      const EDGES = POLY.map((p, i) => [p, POLY[(i + 1) % POLY.length]]);
+      const YMAX = Math.max(...POLY.map((p) => p[1]));
+      const YMIN = Math.min(...POLY.map((p) => p[1]));
+      const CY = (YMAX + YMIN) / 2;
+
+      function spans(y) {
+        const xs = [];
+        for (const [[x1, y1], [x2, y2]] of EDGES) {
+          if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
+            xs.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1));
+          }
+        }
+        xs.sort((a, b) => a - b);
+        const res = [];
+        for (let i = 0; i < xs.length; i += 2) {
+          if (i + 1 < xs.length) res.push([xs[i], xs[i + 1]]);
+        }
+        return res;
+      }
+
+      function intersect(A, B) {
+        const out = [];
+        for (const a of A) {
+          for (const b of B) {
+            const lo = Math.max(a[0], b[0]);
+            const hi = Math.min(a[1], b[1]);
+            if (hi - lo > 14) out.push([lo, hi]);
+          }
+        }
+        return out;
+      }
+
+      function* phraseCycle() {
+        while (true) {
+          const order = rng.shuffle([...PHRASES]);
+          for (const phrase of order) yield phrase;
+        }
+      }
+
+      function measureTextWidth(text, size) {
+        mCtx.font = `bold ${size}px ${FONT}`;
+        return mCtx.measureText(text).width;
+      }
+
+      function mathDist(x, y) {
+        return Math.hypot(x / (16 * SC), (y - CY) / (14.5 * SC));
+      }
+
+      function build() {
+        const cycle = phraseCycle();
+        const rowH = Math.max(...SIZES) + 6;
+        const half = rowH / 2;
+        const placed = [];
+
+        let y = YMAX - half;
+        while (y > YMIN + half) {
+          const row = intersect(spans(y + half), spans(y - half));
+          for (let [lo, hi] of row) {
+            lo += 4;
+            hi -= 4;
+            let cur = lo + rng.uniform(0, 8);
+            const line = [];
+
+            while (true) {
+              let fit = null;
+              for (let attempt = 0; attempt < 10; attempt++) {
+                const text = cycle.next().value;
+                const size = rng.choice(SIZES);
+                const w = measureTextWidth(text, size);
+                if (cur + w <= hi) {
+                  fit = { text, size, w };
+                  break;
+                }
+              }
+              if (!fit) break;
+              line.push({ x: cur + fit.w / 2, text: fit.text, size: fit.size, w: fit.w });
+              cur += fit.w + GAP;
+            }
+
+            if (line.length === 0) continue;
+
+            if (line.length > 1) {
+              const left = hi - (line[line.length - 1].x + line[line.length - 1].w / 2);
+              line.forEach((it, i) => {
+                it.x += (left * i) / (line.length - 1);
+              });
+            } else {
+              line[0].x = (lo + hi) / 2;
+            }
+
+            line.forEach((it, i) => {
+              const edge = i === 0 || i === line.length - 1;
+              placed.push({
+                x: it.x,
+                y: y,
+                text: it.text,
+                size: it.size,
+                edge: edge,
+                f: 0,
+                dx: rng.uniform(-10, 10),
+                done: false,
+                shimmerUntil: 0
+              });
+            });
+          }
+          y -= rowH;
+        }
+
+        const wine = [0.62, 0.03, 0.14];
+        const crimson = [0.94, 0.12, 0.24];
+        const roseGold = [1.0, 0.42, 0.36];
+
+        for (const p of placed) {
+          const rad = Math.min(1.0, mathDist(p.x, p.y));
+          let base = mixCol(wine, crimson, 0.25 + 0.75 * rad);
+          base = mixCol(base, roseGold, rng.uniform(0, 0.28) + (p.edge ? 0.32 : 0));
+          p.color = base.map((v) => Math.min(1, v));
+          p.rad = rad;
+        }
+
+        const edges = placed.filter((p) => p.edge);
+        const inner = placed.filter((p) => !p.edge);
+
+        const mod2Pi = (val) => ((val % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        edges.sort((a, b) => mod2Pi(Math.atan2(a.x, a.y - CY)) - mod2Pi(Math.atan2(b.x, b.y - CY)));
+        inner.sort((a, b) => (-a.rad + rng.uniform(0, 0.08)) - (-b.rad + rng.uniform(0, 0.08)));
+
+        return [...edges, ...inner];
+      }
+
+      const ORDER = build();
+      let spawnIndex = 0;
+      let lastShimmer = 0;
+      let allSettled = false;
+
+      function reset() {
+        spawnIndex = 0;
+        lastShimmer = 0;
+        allSettled = false;
+        for (const p of ORDER) {
+          p.f = 0;
+          p.done = false;
+          p.shimmerUntil = 0;
+        }
+      }
+
+      function render(ctx, clockSec, dt, cx, cy, scale) {
+        // Inicia imediatamente em t = 0 (sem atraso)
+        const targetSpawn = Math.min(
+          ORDER.length,
+          Math.max(1, Math.floor((clockSec / DURATION) * ORDER.length))
+        );
+        if (targetSpawn > spawnIndex) {
+          spawnIndex = targetSpawn;
+        }
+
+        const stepFrames = dt * 60;
+        let anyActive = false;
+        for (let i = 0; i < spawnIndex; i++) {
+          const p = ORDER[i];
+          if (!p.done) {
+            p.f += stepFrames;
+            if (p.f >= ANIM) {
+              p.f = ANIM;
+              p.done = true;
+            } else {
+              anyActive = true;
+            }
+          }
+        }
+
+        if (spawnIndex >= ORDER.length && !anyActive) {
+          allSettled = true;
+        }
+
+        // Brilho cintilante contínuo (shimmer) após o coração completar
+        if (allSettled && clockSec - lastShimmer >= 0.12) {
+          lastShimmer = clockSec;
+          const target = rng.choice(ORDER);
+          target.shimmerUntil = clockSec + 0.28;
+        }
+
+        // Pulso suave após completar
+        const heartbeat = allSettled
+          ? 1 + 0.02 * Math.pow(Math.max(0, Math.sin(clockSec * 2.8)), 4)
+          : 1;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale * heartbeat, scale * heartbeat);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let i = 0; i < spawnIndex; i++) {
+          const p = ORDER[i];
+          const x = p.x;
+          const y = -p.y;
+          const c = p.color;
+
+          const u = clamp(p.f / ANIM, 0, 1);
+          const e = 1 - Math.pow(1 - u, 3);
+          const hover = (1 - e) * LIFT;
+          const px = p.done ? x : x + p.dx * (1 - e);
+          const py = p.done ? y : y - hover;
+
+          // Sombra
+          ctx.font = `bold ${p.size}px ${FONT}`;
+          ctx.fillStyle = hx(dimCol(c, 0.28), e * 0.85);
+          ctx.fillText(p.text, x + 2, y + 3);
+
+          // Halo
+          ctx.font = `bold ${p.size + 1}px ${FONT}`;
+          ctx.fillStyle = hx(dimCol(c, 0.25), e * e * 0.7);
+          ctx.fillText(p.text, px, py);
+
+          // Texto principal
+          let mainCol;
+          if (!p.done) {
+            const flash = 0.75 * Math.sin(Math.PI * clamp((u - 0.55) / 0.45, 0, 1));
+            mainCol = mixCol(mixCol(BGC, c, Math.pow(e, 1.5)), FLASH, flash);
+          } else if (clockSec < p.shimmerUntil) {
+            mainCol = mixCol(c, FLASH, 0.65);
+          } else {
+            mainCol = c;
+          }
+
+          ctx.font = `bold ${p.size}px ${FONT}`;
+          ctx.fillStyle = hx(mainCol, e);
+          ctx.fillText(p.text, px, py);
+        }
+
+        ctx.restore();
+      }
+
+      return { render, reset };
+    })();
+
+    // =========================================================================
+    // 4. PALCO PRINCIPAL, PARTÍCULAS DOURADAS E INTERATIVIDADE DISCRETA
+    // =========================================================================
+    const stageCanvas = document.getElementById("stageCanvas");
+    const stageCtx = stageCanvas.getContext("2d", { alpha: false });
+
+    let viewW = window.innerWidth;
+    let viewH = window.innerHeight;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    function resizeStage() {
+      viewW = window.innerWidth;
+      viewH = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      stageCanvas.width = Math.floor(viewW * dpr);
+      stageCanvas.height = Math.floor(viewH * dpr);
+    }
+    window.addEventListener("resize", resizeStage);
+    resizeStage();
+
+    // Estrelas sutis e partículas de pólen dourado flutuante
+    const bgRng = createMulberry32(777);
+    const STARS = Array.from({ length: 90 }, () => ({
+      x: bgRng.random(),
+      y: bgRng.random(),
+      r: bgRng.uniform(0.6, 1.8),
+      phase: bgRng.uniform(0, Math.PI * 2),
+      speed: bgRng.uniform(0.8, 2.4),
+      warm: bgRng.random() > 0.35
+    }));
+
+    const POLLEN = Array.from({ length: 48 }, () => ({
+      x: bgRng.random(),
+      y: bgRng.random(),
+      vy: bgRng.uniform(0.012, 0.036),
+      drift: bgRng.uniform(12, 36),
+      phase: bgRng.uniform(0, Math.PI * 2),
+      r: bgRng.uniform(1.2, 2.8)
+    }));
+
+    // Faíscas douradas e pequenos corações ao clicar/tocar na tela
+    const bursts = [];
+    function spawnBurst(clientX, clientY) {
+      const count = 18;
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+        const spd = 40 + Math.random() * 110;
+        bursts.push({
+          x: clientX,
+          y: clientY,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 35,
+          life: 1.0,
+          decay: 0.72 + Math.random() * 0.48,
+          isHeart: i % 4 === 0,
+          size: 8 + Math.random() * 8,
+          gold: Math.random() > 0.32
+        });
+      }
+    }
+
+    stageCanvas.addEventListener("pointerdown", (e) => {
+      spawnBurst(e.clientX, e.clientY);
+    });
+
+    // Atalhos de teclado: Espaço (pausa/retoma) e R (reinicia)
+    let isPaused = false;
+    let clock = 0.0;
+    let captionShown = false;
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        isPaused = !isPaused;
+      } else if (e.key === "r" || e.key === "R") {
+        clock = 0.0;
+        LoveHeart.reset();
+        if (hasText) {
+          captionShown = false;
+          captionEl.classList.remove("visible");
+        }
+      }
+    });
+
+    // =========================================================================
+    // 5. LOOP PRINCIPAL DE ANIMAÇÃO (INICIA IMEDIATAMENTE EM 0ms)
+    // =========================================================================
+    let lastTime = performance.now();
+    let ambientTime = 0.0;
+
+    function renderLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000.0, 0.1);
+      lastTime = now;
+
+      ambientTime += dt;
+      if (!isPaused) {
+        clock += dt;
+      }
+
+      // Revela suavemente a mensagem configurada no código após 4.5s de desabrochar
+      if (hasText && !captionShown && clock >= 4.5) {
+        captionShown = true;
+        captionEl.classList.add("visible");
+      }
+
+      stageCtx.save();
+      stageCtx.scale(dpr, dpr);
+
+      // 1. Fundo escuro profundo (#050208)
+      stageCtx.fillStyle = "#050208";
+      stageCtx.fillRect(0, 0, viewW, viewH);
+
+      const isMobile = viewW < 640;
+      const centerX = viewW * 0.5;
+      const heartCenterY = isMobile ? viewH * 0.25 : viewH * 0.27;
+
+      // 2. Brilhos atmosféricos (rubi no coração e dourado quente nas tulipas)
+      const heartGlow = stageCtx.createRadialGradient(
+        centerX, heartCenterY, 10,
+        centerX, heartCenterY, Math.min(viewW, viewH) * 0.34
+      );
+      const hAlpha = clamp(clock / 4.5, 0.04, 0.22);
+      heartGlow.addColorStop(0, `rgba(225, 29, 72, ${hAlpha})`);
+      heartGlow.addColorStop(1, "rgba(5, 2, 8, 0)");
+      stageCtx.fillStyle = heartGlow;
+      stageCtx.fillRect(0, 0, viewW, viewH);
+
+      const tulipGlow = stageCtx.createRadialGradient(
+        centerX, viewH * 0.78, 10,
+        centerX, viewH * 0.78, Math.min(viewW, viewH) * 0.45
+      );
+      const tAlpha = clamp(clock / 4.0, 0.05, 0.20);
+      tulipGlow.addColorStop(0, `rgba(245, 190, 36, ${tAlpha})`);
+      tulipGlow.addColorStop(1, "rgba(5, 2, 8, 0)");
+      stageCtx.fillStyle = tulipGlow;
+      stageCtx.fillRect(0, 0, viewW, viewH);
+
+      // 3. Estrelas sutis
+      for (let i = 0; i < STARS.length; i++) {
+        const st = STARS[i];
+        const alpha = 0.22 + 0.52 * (0.5 + 0.5 * Math.sin(ambientTime * st.speed + st.phase));
+        stageCtx.fillStyle = st.warm
+          ? `rgba(255, 232, 180, ${alpha.toFixed(3)})`
+          : `rgba(255, 195, 210, ${alpha.toFixed(3)})`;
+        stageCtx.beginPath();
+        stageCtx.arc(st.x * viewW, st.y * viewH, st.r, 0, Math.PI * 2);
+        stageCtx.fill();
+      }
+
+      // 4. Coração multilíngue na metade superior
+      const heartScale = isMobile
+        ? Math.min(viewW / 860, viewH / 1280)
+        : Math.min(viewW / 1360, viewH / 1040);
+      LoveHeart.render(stageCtx, clock, isPaused ? 0 : dt, centerX, heartCenterY, heartScale);
+
+      // 5. Buquê farto de 13 tulipas e 11 folhas espaçadas na metade inferior
+      const tulipImg = TulipBouquet.update(clock);
+      const bouquetAspect = TulipBouquet.W / TulipBouquet.H;
+      const tulipDrawH = isMobile
+        ? Math.min(viewW * 0.84, viewH * 0.56)
+        : Math.min(viewW * 0.56, viewH * 0.66);
+      const tulipDrawW = tulipDrawH * bouquetAspect;
+      const drawX = centerX - tulipDrawW / 2;
+      const drawY = viewH - tulipDrawH * 0.95;
+      stageCtx.drawImage(tulipImg, drawX, drawY, tulipDrawW, tulipDrawH);
+
+      // 6. Partículas douradas flutuantes
+      for (let i = 0; i < POLLEN.length; i++) {
+        const p = POLLEN[i];
+        const py = ((p.y - ambientTime * p.vy) % 1 + 1) % 1;
+        const px = p.x * viewW + Math.sin(ambientTime * 0.9 + p.phase) * p.drift;
+        const alpha = 0.25 + 0.45 * Math.sin(ambientTime * 2.1 + p.phase);
+        stageCtx.fillStyle = `rgba(252, 211, 77, ${clamp(alpha, 0.08, 0.75).toFixed(3)})`;
+        stageCtx.beginPath();
+        stageCtx.arc(px, py * viewH, p.r, 0, Math.PI * 2);
+        stageCtx.fill();
+      }
+
+      // 7. Faíscas e pequenos corações ao clicar/tocar
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const b = bursts[i];
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.vy += 45 * dt;
+        b.life -= b.decay * dt;
+        if (b.life <= 0) {
+          bursts.splice(i, 1);
+          continue;
+        }
+        stageCtx.save();
+        stageCtx.globalAlpha = clamp(b.life, 0, 1);
+        if (b.isHeart) {
+          stageCtx.font = `${Math.round(b.size * 1.4)}px serif`;
+          stageCtx.fillStyle = b.gold ? "#fcd34d" : "#fb7185";
+          stageCtx.fillText("♥", b.x, b.y);
+        } else {
+          stageCtx.fillStyle = b.gold ? "#fde68a" : "#fda4af";
+          stageCtx.beginPath();
+          stageCtx.arc(b.x, b.y, b.size * 0.22, 0, Math.PI * 2);
+          stageCtx.fill();
+        }
+        stageCtx.restore();
+      }
+
+      stageCtx.restore();
+      requestAnimationFrame(renderLoop);
+    }
+
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>

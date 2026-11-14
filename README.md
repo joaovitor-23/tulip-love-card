@@ -39,19 +39,6 @@ const CONFIG_CARTAO = {
 };
 ```
 
-4. Abra o arquivo no navegador ou hospede gratuitamente no **GitHub Pages** para compartilhar o link com alguém especial!
-
----
-
-## 🌐 Publicando no GitHub Pages
-
-1. Renomeie o arquivo principal para `index.html` na raiz do repositório.
-2. No GitHub, acesse **Settings → Pages**.
-3. Em **Branch**, selecione `main` (pasta `/root`) e clique em **Save**.
-4. Em poucos instantes seu cartão estará online pronto para ser enviado!
-
----
-
 ## 🛠️ Tecnologias Utilizadas
 
 - **HTML5 Canvas API** (`ImageData` / `Uint32Array` para renderização de pixels em alta velocidade)
